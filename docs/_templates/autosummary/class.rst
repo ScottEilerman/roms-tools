@@ -3,7 +3,6 @@
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
-
    {% block methods %}
    {% if methods %}
    .. rubric:: Methods
@@ -12,10 +11,12 @@
    {% for item in all_methods %}
       {%- if not item.startswith('_') or item in ['__call__',
                                                   ] %}
-        {%- if not (objname == 'ChildGrid' and item == 'from_file') %}
+        {%- if not (objname == 'ChildGrid' and item == 'from_file') or not (item in inherited_members) %}
+        {%- if not item in inherited_members %}
         {{ name }}.{{ item }}
        . {% endif %}
       {% endif %}
+    {% endif %}
    {% endfor %}
    {% endif %}
    {% endblock %}
