@@ -127,6 +127,7 @@ class SurfaceForcing:
 
     def __post_init__(self):
 
+        logging.info("begin surface forcing post init")
         self._input_checks()
         data = self._get_data()
 
@@ -142,18 +143,20 @@ class SurfaceForcing:
             logging.info("Data will be interpolated onto fine grid.")
         self.use_coarse_grid = use_coarse_grid
 
+        logging.info("before target coords")
         target_coords = get_target_coords(self.grid, self.use_coarse_grid)
         self.target_coords = target_coords
-
+        logging.info("after target coords")
         data.choose_subdomain(
             target_coords,
             buffer_points=20,  # lateral fill needs some buffer from data margin
         )
+        logging.info("after choose_subdomain")
         # Enforce double precision to ensure reproducibility
         data.convert_to_float64()
-
+        logging.info("after float64")
         data.apply_lateral_fill()
-
+        logging.info("after lateral fill")
         self._set_variable_info(data)
         var_names = {
             var: {"name": name}
@@ -164,12 +167,13 @@ class SurfaceForcing:
 
         processed_fields = {}
         # lateral regridding
+        logging.info("before regrid")
         lateral_regrid = LateralRegridToROMS(target_coords, data.dim_names)
         for var_name in var_names:
             processed_fields[var_name] = lateral_regrid.apply(
                 data.ds[var_names[var_name]["name"]]
             )
-
+        logging.info("after regrid")
         # rotation of velocities
         if "uwnd" in processed_fields and "vwnd" in processed_fields:
             processed_fields["uwnd"], processed_fields["vwnd"] = rotate_velocities(
@@ -178,7 +182,7 @@ class SurfaceForcing:
                 target_coords["angle"],
                 interpolate=False,
             )
-
+        logging.info("after rotate velocities")
         if self.type == "physics":
             if self.correct_radiation:
                 processed_fields["swrad"] = self._apply_radiation_correction(
@@ -191,7 +195,7 @@ class SurfaceForcing:
                 ) = self._apply_wind_correction(
                     processed_fields["uwnd"], processed_fields["vwnd"]
                 )
-
+        logging.info("after corrections")
         if self.type == "bgc":
             processed_fields = compute_missing_surface_bgc_variables(processed_fields)
 
@@ -201,17 +205,18 @@ class SurfaceForcing:
                 processed_fields[var_name]
             )
 
+        logging.info("after transpose")
         d_meta = get_variable_metadata()
 
         ds = self._write_into_dataset(processed_fields, data, d_meta)
-
+        logging.info("after write into dataset")
         if not self.bypass_validation:
             self._validate(ds)
-
+        logging.info("after validation")
         # substitute NaNs over land by a fill value to avoid blow-up of ROMS
         for var_name in ds.data_vars:
             ds[var_name] = substitute_nans_by_fillvalue(ds[var_name])
-
+        logging.info("after substitute nans")
         self.ds = ds
 
     def _input_checks(self):
@@ -291,6 +296,8 @@ class SurfaceForcing:
         return use_coarse_grid
 
     def _get_data(self):
+
+        logging.info("begin _get_data")
 
         data_dict = {
             "filename": self.source["path"],

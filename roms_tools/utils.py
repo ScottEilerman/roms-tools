@@ -57,6 +57,8 @@ def _load_data(
     ValueError
         If a list of files is provided but dim_names["time"] is not available or use_dask=False.
     """
+    logging.info("begin _load_data")
+
     if dim_names is None:
         dim_names = {}
 
@@ -171,6 +173,8 @@ def _load_data(
             )
 
             if read_zarr:
+                logging.info("begin open_zarr")
+
                 ds = xr.open_zarr(
                     matching_files[0],
                     decode_times=decode_times,
@@ -178,6 +182,8 @@ def _load_data(
                     consolidated=None,
                     storage_options=dict(token="anon"),
                 )
+                logging.info("end open_zarr")
+
             else:
                 ds = xr.open_mfdataset(
                     matching_files,
@@ -211,6 +217,7 @@ def _load_data(
 
     if "time" in dim_names:
         ds = ds.drop_duplicates(dim=dim_names["time"])
+    logging.info("end _load_data")
 
     return ds
 

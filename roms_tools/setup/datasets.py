@@ -110,6 +110,8 @@ class Dataset:
         5. Checks if the dataset covers the entire globe and adjusts if necessary.
         """
 
+        logging.info("begin era5 post_init")
+
         # Validate start_time and end_time
         if self.start_time is not None and not isinstance(self.start_time, datetime):
             raise TypeError(
@@ -124,9 +126,11 @@ class Dataset:
         ds = self.clean_up(ds)
         self.check_dataset(ds)
 
+        logging.info("after check_dataset")
+
         # Select relevant fields
         ds = self.select_relevant_fields(ds)
-
+        logging.info("after select_relevant_fields")
         # Select relevant times
         if "time" in self.dim_names and self.start_time is not None:
             ds = self.add_time_info(ds)
@@ -134,7 +138,7 @@ class Dataset:
 
             if self.dim_names["time"] != "time":
                 ds = ds.rename({self.dim_names["time"]: "time"})
-
+        logging.info("after time stuff")
         # Make sure that latitude is ascending
         ds = self.ensure_dimension_is_ascending(ds, dim="latitude")
         # Make sure there are no 360 degree jumps in longitude
@@ -144,8 +148,9 @@ class Dataset:
             # Make sure that depth is ascending
             ds = self.ensure_dimension_is_ascending(ds, dim="depth")
 
+        logging.info("after dim checks")
         self.infer_horizontal_resolution(ds)
-
+        logging.info("after infer_horizontal_resolution")
         # Check whether the data covers the entire globe
         self.is_global = self.check_if_global(ds)
         self.ds = ds
@@ -1483,6 +1488,7 @@ class ERA5Dataset(Dataset):
         - Compute relative humidity if not present, convert to absolute humidity.
         - Use SST to create mask.
         """
+        logging.info("start post_process")
         # Translate radiation to fluxes. ERA5 stores values integrated over 1 hour.
         # Convert radiation from J/m^2 to W/m^2
         self.ds[self.var_names["swrad"]] /= 3600
@@ -1531,7 +1537,7 @@ class ERA5Dataset(Dataset):
             var_names = {**self.var_names, "qair": "qair"}
             var_names.pop("d2m")
             self.var_names = var_names
-
+            logging.info("after post_process")
         if "mask" in self.var_names.keys():
             ds = self.ds
             mask = xr.where(self.ds[self.var_names["mask"]].isel(time=0).isnull(), 0, 1)
@@ -1543,6 +1549,7 @@ class ERA5Dataset(Dataset):
             var_names = self.var_names
             var_names.pop("mask")
             self.var_names = var_names
+        logging.info("after mask")
 
 
 @dataclass(kw_only=True)
@@ -1563,6 +1570,7 @@ class ERA5ARCODataset(ERA5Dataset):
     )
 
     def __post_init__(self):
+
         self.read_zarr = True
         if not _has_gcsfs():
             raise RuntimeError(
