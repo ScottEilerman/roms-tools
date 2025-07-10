@@ -202,11 +202,11 @@ class RiverForcing:
                     # Check that eta_rho and xi_rho are within the valid range
                     if not (0 <= eta_rho < len(self.grid.ds.eta_rho)):
                         raise ValueError(
-                            f"Value of eta_rho for river `{river_name}` ({eta_rho}) is out of valid range [0, {len(self.grid.ds.eta_rho)-1}]."
+                            f"Value of eta_rho for river `{river_name}` ({eta_rho}) is out of valid range [0, {len(self.grid.ds.eta_rho) - 1}]."
                         )
                     if not (0 <= xi_rho < len(self.grid.ds.xi_rho)):
                         raise ValueError(
-                            f"Value of xi_rho for river `{river_name}` ({xi_rho}) is out of valid range [0, {len(self.grid.ds.xi_rho)-1}]."
+                            f"Value of xi_rho for river `{river_name}` ({xi_rho}) is out of valid range [0, {len(self.grid.ds.xi_rho) - 1}]."
                         )
 
                     # Check for duplicate tuples
@@ -217,7 +217,6 @@ class RiverForcing:
                     seen_tuples.add(idx_pair)
 
     def _get_data(self):
-
         data_dict = {
             "start_time": self.start_time,
             "end_time": self.end_time,
@@ -430,7 +429,6 @@ class RiverForcing:
             fraction = 1.0 / len(indices)
 
             for eta_index, xi_index in indices:
-
                 # Assign unique nriver ID (Fortran-based indexing)
                 river_index[eta_index, xi_index] = nriver
                 # Fractional contribution for multiple grid points
@@ -615,7 +613,6 @@ class RiverForcing:
             long_name = f"River {d[var_name_wo_river]['long_name']}"
 
         for i in range(len(self.ds.nriver)):
-
             ax.plot(
                 xticks,
                 field.isel(nriver=i),

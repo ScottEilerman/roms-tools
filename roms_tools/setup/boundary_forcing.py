@@ -125,7 +125,6 @@ class BoundaryForcing:
     ds: xr.Dataset = field(init=False, repr=False)
 
     def __post_init__(self):
-
         self._input_checks()
         # Dataset for depth coordinates
         self.ds_depth_coords = xr.Dataset()
@@ -135,7 +134,6 @@ class BoundaryForcing:
         data = self._get_data()
 
         if self.apply_2d_horizontal_fill:
-
             data.choose_subdomain(
                 target_coords,
                 buffer_points=20,  # lateral fill needs good buffer from data margin
@@ -171,7 +169,6 @@ class BoundaryForcing:
 
         for direction in ["south", "east", "north", "west"]:
             if self.boundaries[direction]:
-
                 bdry_target_coords = {
                     "lat": target_coords["lat"].isel(
                         **self.bdry_coords["vector"][direction]
@@ -253,7 +250,10 @@ class BoundaryForcing:
                     angle = target_coords["angle"].isel(
                         **self.bdry_coords["vector"][direction]
                     )
-                    (processed_fields["u"], processed_fields["v"],) = rotate_velocities(
+                    (
+                        processed_fields["u"],
+                        processed_fields["v"],
+                    ) = rotate_velocities(
                         processed_fields["u"],
                         processed_fields["v"],
                         angle,
@@ -335,13 +335,13 @@ class BoundaryForcing:
                     self._get_depth_coordinates(zeta_u, direction, "u", "interface")
                     self._get_depth_coordinates(zeta_v, direction, "v", "interface")
                     for location in ["u", "v"]:
-                        processed_fields[
-                            f"{location}bar"
-                        ] = compute_barotropic_velocity(
-                            processed_fields[location],
-                            self.ds_depth_coords[
-                                f"interface_depth_{location}_{direction}"
-                            ],
+                        processed_fields[f"{location}bar"] = (
+                            compute_barotropic_velocity(
+                                processed_fields[location],
+                                self.ds_depth_coords[
+                                    f"interface_depth_{location}_{direction}"
+                                ],
+                            )
                         )
 
                 # Reorder dimensions
@@ -412,7 +412,6 @@ class BoundaryForcing:
             )
 
     def _get_data(self):
-
         data_dict = {
             "filename": self.source["path"],
             "start_time": self.start_time,
@@ -431,7 +430,6 @@ class BoundaryForcing:
 
         elif self.type == "bgc":
             if self.source["name"] == "CESM_REGRIDDED":
-
                 data = CESMBGCDataset(**data_dict)
             elif self.source["name"] == "UNIFIED":
                 data = UnifiedBGCDataset(**data_dict)
@@ -533,9 +531,9 @@ class BoundaryForcing:
                 np.float32
             )
 
-            ds[f"{var_name}_{direction}"].attrs[
-                "long_name"
-            ] = f"{direction}ern boundary {d_meta[var_name]['long_name']}"
+            ds[f"{var_name}_{direction}"].attrs["long_name"] = (
+                f"{direction}ern boundary {d_meta[var_name]['long_name']}"
+            )
 
             ds[f"{var_name}_{direction}"].attrs["units"] = d_meta[var_name]["units"]
 
@@ -666,7 +664,6 @@ class BoundaryForcing:
             self.ds_depth_coords[key] = depth
 
     def _add_global_metadata(self, data, ds=None):
-
         if ds is None:
             ds = xr.Dataset()
         ds.attrs["title"] = "ROMS boundary forcing file created by ROMS-Tools"

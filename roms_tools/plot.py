@@ -603,7 +603,6 @@ def _add_field_to_ax(
 
 
 def _get_projection(lon, lat):
-
     return ccrs.NearsidePerspective(
         central_longitude=lon.mean().values, central_latitude=lat.mean().values
     )

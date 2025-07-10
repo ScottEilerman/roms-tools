@@ -1601,7 +1601,6 @@ class ERA5Correction(Dataset):
     climatology: Optional[bool] = True
 
     def __post_init__(self):
-
         if not self.climatology:
             raise NotImplementedError(
                 "Correction data must be a climatology. Set climatology to True."
@@ -1753,7 +1752,6 @@ class RiverDataset:
     ds: xr.Dataset = field(init=False, repr=False)
 
     def __post_init__(self):
-
         # Validate start_time and end_time
         if not isinstance(self.start_time, datetime):
             raise TypeError(
@@ -2196,7 +2194,6 @@ class TPXOManager:
     use_dask: Optional[bool] = False
 
     def __post_init__(self):
-
         fname_sal = download_sal_data("sal_tpxo9.v2a.nc")
 
         # Initialize the data_dict with TPXODataset instances
@@ -2835,7 +2832,6 @@ def _select_relevant_times(
 
 
 def decode_string(byte_array):
-
     # Decode each byte and handle errors with 'ignore'
     decoded_string = "".join(
         [

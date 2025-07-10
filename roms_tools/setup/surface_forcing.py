@@ -127,7 +127,6 @@ class SurfaceForcing:
     ds: xr.Dataset = field(init=False, repr=False)
 
     def __post_init__(self):
-
         self._input_checks()
         data = self._get_data()
 
@@ -292,7 +291,6 @@ class SurfaceForcing:
         return use_coarse_grid
 
     def _get_data(self):
-
         data_dict = {
             "filename": self.source["path"],
             "start_time": self.start_time,
@@ -331,7 +329,6 @@ class SurfaceForcing:
         return data
 
     def _get_correction_data(self):
-
         if self.source["name"] == "ERA5":
             correction_data = ERA5Correction(use_dask=self.use_dask)
         else:
@@ -518,7 +515,6 @@ class SurfaceForcing:
         return uwnd_corrected, vwnd_corrected
 
     def _write_into_dataset(self, processed_fields, data, d_meta):
-
         # save in new dataset
         ds = xr.Dataset()
 
@@ -584,7 +580,6 @@ class SurfaceForcing:
                 nan_check(ds[var_name].isel(time=0), mask)
 
     def _add_global_metadata(self, ds=None):
-
         if ds is None:
             ds = xr.Dataset()
         ds.attrs["title"] = "ROMS surface forcing file created by ROMS-Tools"

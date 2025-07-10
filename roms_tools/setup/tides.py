@@ -90,7 +90,6 @@ class TidalForcing:
     ds: xr.Dataset = field(init=False, repr=False)
 
     def __post_init__(self):
-
         self._input_checks()
         target_coords = get_target_coords(self.grid)
 
@@ -168,7 +167,6 @@ class TidalForcing:
         self.ds = ds
 
     def _input_checks(self):
-
         if "name" not in self.source.keys():
             raise ValueError("`source` must include a 'name'.")
         if "path" not in self.source.keys():
@@ -263,7 +261,6 @@ class TidalForcing:
         self.variable_info = variable_info
 
     def _write_into_dataset(self, processed_fields, d_meta):
-
         # save in new dataset
         ds = xr.Dataset()
 
@@ -277,7 +274,6 @@ class TidalForcing:
         return ds
 
     def _add_global_metadata(self, ds):
-
         ds.attrs["title"] = "ROMS tidal forcing created by ROMS-Tools"
         # Include the version of roms-tools
         try:

@@ -55,7 +55,6 @@ class ROMSOutput:
     ds: xr.Dataset = field(init=False, repr=False)
 
     def __post_init__(self):
-
         ds = self._load_model_output()
         self._infer_model_reference_date_from_metadata(ds)
         self._check_vertical_coordinate(ds)
@@ -307,7 +306,6 @@ class ROMSOutput:
 
         # Regrid laterally
         if lat is not None or lon is not None:
-
             if lat is not None:
                 lats = [lat]
                 title = title + f", lat = {lat}°N"
