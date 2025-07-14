@@ -100,6 +100,10 @@ class SurfaceForcing:
         the validation process that ensures no NaN values exist at wet points
         in the processed dataset is bypassed. Defaults to False.
 
+    ds: xr.Dataset
+        I am writing this in the class docstring
+
+
     Examples
     --------
     >>> surface_forcing = SurfaceForcing(
@@ -125,6 +129,7 @@ class SurfaceForcing:
     bypass_validation: bool = False
 
     ds: xr.Dataset = field(init=False, repr=False)
+    """The best dataset ever."""
 
     def __post_init__(self):
 

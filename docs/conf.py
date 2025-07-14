@@ -26,12 +26,14 @@ extensions = [
     "sphinx.ext.mathjax",
     "nbsphinx",
     "sphinxcontrib.bibtex",
+    'sphinxcontrib.autodoc_pydantic'
 ]
 myst_enable_extensions = ["dollarmath", "amsmath"]
 
 numpydoc_show_class_members = True
 napolean_google_docstring = False
 napolean_numpy_docstring = True
+
 
 templates_path = ["_templates"]
 exclude_patterns = []
@@ -46,7 +48,10 @@ napoleon_custom_sections = [
 ]
 
 autodoc_default_options = {
-    "inherited-members": False,
+    # "inherited-members": False,
+    # 'class-doc-from': "class",
+    # "members": True,
+    # "exclude-members": "__init__",
 }
 
 # -- Options for HTML output -------------------------------------------------
@@ -63,3 +68,14 @@ html_theme_options = {
     "repository_url": "https://github.com/CWorthy-ocean/roms-tools",
     "use_repository_button": True,
 }
+
+
+def skip_init_member(app, what, name,
+                           obj, skip, options):
+
+    if name == "__init__":
+        return True  # Return True to ...../?????????????????????????????????????????????????????????????????????????????????
+
+def setup(app):
+    app.connect('autodoc-skip-member',
+                           skip_init_member)

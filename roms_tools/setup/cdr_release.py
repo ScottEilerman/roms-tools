@@ -275,7 +275,7 @@ class Release(BaseModel):
 class VolumeRelease(Release):
     """Represents a CDR release with volume flux and tracer concentrations.
 
-    Attributes
+    Parameters
     ----------
     name : str
         Unique identifier for the release.
