@@ -6,7 +6,7 @@
 .. autoclass:: VolumeRelease
    :members:
    :exclude-members: model_config
-   :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
+
 
 
    .. rubric:: Methods
@@ -91,8 +91,6 @@
    .. rubric:: Attributes
    .. autosummary::
 
-
-      VolumeRelease.model_config
 
 
 

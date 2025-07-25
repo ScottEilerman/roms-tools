@@ -5,7 +5,7 @@
 .. autoclass:: {{ objname }}
    :members:
    :exclude-members: model_config
-   :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
+
    {% block methods %}
    {% if methods %}
    .. rubric:: Methods
@@ -29,7 +29,7 @@
    .. rubric:: Attributes
    .. autosummary::
    {% for item in attributes %}
-    {%- if not item in inherited_members %}
+    {%- if not item in inherited_members and not item == 'model_config' %}
       {{ name }}.{{ item }}
     {% endif %}
    {% endfor %}
