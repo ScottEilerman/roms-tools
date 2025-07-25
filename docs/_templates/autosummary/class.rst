@@ -4,7 +4,7 @@
 
 .. autoclass:: {{ objname }}
 
-    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
+   :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
    {% block methods %}
    {% if methods %}
    .. rubric:: Methods

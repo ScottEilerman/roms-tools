@@ -5,7 +5,7 @@
 
 .. autoclass:: VolumeRelease
 
-    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
+   :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
 
 
    .. rubric:: Methods
