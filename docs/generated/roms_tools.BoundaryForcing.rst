@@ -5,6 +5,8 @@
 
 .. autoclass:: BoundaryForcing
 
+    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
+
 
    .. rubric:: Methods
    .. autosummary::
@@ -42,23 +44,23 @@
 
 
 
-        BoundaryForcing.from_yaml
-       .
+            BoundaryForcing.from_yaml
 
 
 
-        BoundaryForcing.plot
-       .
+
+            BoundaryForcing.plot
 
 
 
-        BoundaryForcing.save
-       .
+
+            BoundaryForcing.save
 
 
 
-        BoundaryForcing.to_yaml
-       .
+
+            BoundaryForcing.to_yaml
+
 
 
 
@@ -72,24 +74,35 @@
 
       BoundaryForcing.adjust_depth_for_sea_surface_height
 
+
       BoundaryForcing.apply_2d_horizontal_fill
+
 
       BoundaryForcing.bypass_validation
 
+
       BoundaryForcing.end_time
+
 
       BoundaryForcing.model_reference_date
 
+
       BoundaryForcing.start_time
+
 
       BoundaryForcing.type
 
+
       BoundaryForcing.use_dask
+
 
       BoundaryForcing.grid
 
+
       BoundaryForcing.boundaries
 
+
       BoundaryForcing.source
+
 
       BoundaryForcing.ds

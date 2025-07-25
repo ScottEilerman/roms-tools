@@ -5,6 +5,8 @@
 
 .. autoclass:: Grid
 
+    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
+
 
    .. rubric:: Methods
    .. autosummary::
@@ -43,43 +45,43 @@
 
 
 
-        Grid.from_file
-       .
+            Grid.from_file
 
 
 
-        Grid.from_yaml
-       .
+
+            Grid.from_yaml
 
 
 
-        Grid.plot
-       .
+
+            Grid.plot
 
 
 
-        Grid.plot_vertical_coordinate
-       .
+
+            Grid.plot_vertical_coordinate
 
 
 
-        Grid.save
-       .
+
+            Grid.save
 
 
 
-        Grid.to_yaml
-       .
+
+            Grid.to_yaml
 
 
 
-        Grid.update_topography
-       .
+
+            Grid.update_topography
 
 
 
-        Grid.update_vertical_coordinate
-       .
+
+            Grid.update_vertical_coordinate
+
 
 
 
@@ -93,32 +95,47 @@
 
       Grid.N
 
+
       Grid.hc
+
 
       Grid.hmin
 
+
       Grid.rot
+
 
       Grid.theta_b
 
+
       Grid.theta_s
+
 
       Grid.topography_source
 
+
       Grid.verbose
+
 
       Grid.nx
 
+
       Grid.ny
+
 
       Grid.size_x
 
+
       Grid.size_y
+
 
       Grid.center_lon
 
+
       Grid.center_lat
 
+
       Grid.ds
+
 
       Grid.straddle

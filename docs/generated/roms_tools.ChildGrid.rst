@@ -5,6 +5,8 @@
 
 .. autoclass:: ChildGrid
 
+    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
+
 
    .. rubric:: Methods
    .. autosummary::
@@ -47,21 +49,17 @@
 
 
 
-        ChildGrid.from_file
-       .
 
 
-
-        ChildGrid.from_yaml
-       .
+            ChildGrid.from_yaml
 
 
 
 
 
 
-        ChildGrid.plot_nesting
-       .
+
+            ChildGrid.plot_nesting
 
 
 
@@ -71,18 +69,19 @@
 
 
 
-        ChildGrid.save_nesting
-       .
+
+            ChildGrid.save_nesting
 
 
 
-        ChildGrid.to_yaml
-       .
+
+            ChildGrid.to_yaml
 
 
 
-        ChildGrid.update_topography
-       .
+
+            ChildGrid.update_topography
+
 
 
 
@@ -97,40 +96,42 @@
    .. rubric:: Attributes
    .. autosummary::
 
-      ChildGrid.N
 
-      ChildGrid.hc
 
-      ChildGrid.hmin
 
-      ChildGrid.rot
 
-      ChildGrid.theta_b
 
-      ChildGrid.theta_s
 
-      ChildGrid.topography_source
 
-      ChildGrid.verbose
 
       ChildGrid.parent_grid
 
+
       ChildGrid.boundaries
+
 
       ChildGrid.metadata
 
+
       ChildGrid.nx
+
 
       ChildGrid.ny
 
+
       ChildGrid.size_x
+
 
       ChildGrid.size_y
 
+
       ChildGrid.center_lon
+
 
       ChildGrid.center_lat
 
+
       ChildGrid.ds
+
 
       ChildGrid.straddle

@@ -5,6 +5,8 @@
 
 .. autoclass:: SurfaceForcing
 
+    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
+
 
    .. rubric:: Methods
    .. autosummary::
@@ -42,23 +44,23 @@
 
 
 
-        SurfaceForcing.from_yaml
-       .
+            SurfaceForcing.from_yaml
 
 
 
-        SurfaceForcing.plot
-       .
+
+            SurfaceForcing.plot
 
 
 
-        SurfaceForcing.save
-       .
+
+            SurfaceForcing.save
 
 
 
-        SurfaceForcing.to_yaml
-       .
+
+            SurfaceForcing.to_yaml
+
 
 
 
@@ -72,22 +74,32 @@
 
       SurfaceForcing.bypass_validation
 
+
       SurfaceForcing.coarse_grid_mode
+
 
       SurfaceForcing.correct_radiation
 
+
       SurfaceForcing.end_time
+
 
       SurfaceForcing.model_reference_date
 
+
       SurfaceForcing.start_time
+
 
       SurfaceForcing.type
 
+
       SurfaceForcing.use_dask
+
 
       SurfaceForcing.grid
 
+
       SurfaceForcing.source
+
 
       SurfaceForcing.ds

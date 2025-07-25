@@ -5,6 +5,8 @@
 
 .. autoclass:: ROMSOutput
 
+    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
+
 
    .. rubric:: Methods
    .. autosummary::
@@ -40,13 +42,13 @@
 
 
 
-        ROMSOutput.plot
-       .
+            ROMSOutput.plot
 
 
 
-        ROMSOutput.regrid
-       .
+
+            ROMSOutput.regrid
+
 
 
 
@@ -60,12 +62,17 @@
 
       ROMSOutput.adjust_depth_for_sea_surface_height
 
+
       ROMSOutput.model_reference_date
+
 
       ROMSOutput.use_dask
 
+
       ROMSOutput.grid
 
+
       ROMSOutput.path
+
 
       ROMSOutput.ds

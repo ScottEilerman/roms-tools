@@ -3,6 +3,8 @@
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
+
+    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
    {% block methods %}
    {% if methods %}
    .. rubric:: Methods
@@ -11,10 +13,10 @@
    {% for item in all_methods %}
       {%- if not item.startswith('_') or item in ['__call__',
                                                   ] %}
-        {%- if not (objname == 'ChildGrid' and item == 'from_file') or not (item in inherited_members) %}
+        {%- if not (objname == 'ChildGrid' and item == 'from_file') %}
         {%- if not item in inherited_members %}
-        {{ name }}.{{ item }}
-       . {% endif %}
+            {{ name }}.{{ item }}
+        {% endif %}
       {% endif %}
     {% endif %}
    {% endfor %}
@@ -26,7 +28,9 @@
    .. rubric:: Attributes
    .. autosummary::
    {% for item in attributes %}
+    {%- if not item in inherited_members %}
       {{ name }}.{{ item }}
+    {% endif %}
    {% endfor %}
    {% endif %}
    {% endblock %}
