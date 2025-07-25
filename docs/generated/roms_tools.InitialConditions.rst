@@ -13,26 +13,13 @@
    .. autosummary::
       :toctree:
 
-
             InitialConditions.from_yaml
-
-
-
 
             InitialConditions.plot
 
-
-
-
             InitialConditions.save
 
-
-
-
             InitialConditions.to_yaml
-
-
-
 
 
 

@@ -13,16 +13,9 @@
    .. autosummary::
       :toctree:
 
-
             ROMSOutput.plot
 
-
-
-
             ROMSOutput.regrid
-
-
-
 
 
 

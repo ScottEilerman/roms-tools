@@ -13,26 +13,13 @@
    .. autosummary::
       :toctree:
 
-
             BoundaryForcing.from_yaml
-
-
-
 
             BoundaryForcing.plot
 
-
-
-
             BoundaryForcing.save
 
-
-
-
             BoundaryForcing.to_yaml
-
-
-
 
 
 

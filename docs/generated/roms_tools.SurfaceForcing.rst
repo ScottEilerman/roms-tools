@@ -13,26 +13,13 @@
    .. autosummary::
       :toctree:
 
-
             SurfaceForcing.from_yaml
-
-
-
 
             SurfaceForcing.plot
 
-
-
-
             SurfaceForcing.save
 
-
-
-
             SurfaceForcing.to_yaml
-
-
-
 
 
 

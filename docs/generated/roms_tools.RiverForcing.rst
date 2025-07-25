@@ -13,31 +13,15 @@
    .. autosummary::
       :toctree:
 
-
             RiverForcing.from_yaml
-
-
-
 
             RiverForcing.plot
 
-
-
-
             RiverForcing.plot_locations
-
-
-
 
             RiverForcing.save
 
-
-
-
             RiverForcing.to_yaml
-
-
-
 
 
 

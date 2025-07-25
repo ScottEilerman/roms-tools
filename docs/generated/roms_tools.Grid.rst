@@ -13,46 +13,21 @@
    .. autosummary::
       :toctree:
 
-
             Grid.from_file
-
-
-
 
             Grid.from_yaml
 
-
-
-
             Grid.plot
-
-
-
 
             Grid.plot_vertical_coordinate
 
-
-
-
             Grid.save
-
-
-
 
             Grid.to_yaml
 
-
-
-
             Grid.update_topography
 
-
-
-
             Grid.update_vertical_coordinate
-
-
-
 
 
 

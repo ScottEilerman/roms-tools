@@ -13,26 +13,13 @@
    .. autosummary::
       :toctree:
 
-
             TidalForcing.from_yaml
-
-
-
 
             TidalForcing.plot
 
-
-
-
             TidalForcing.save
 
-
-
-
             TidalForcing.to_yaml
-
-
-
 
 
 
