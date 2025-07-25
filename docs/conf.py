@@ -47,7 +47,8 @@ napoleon_custom_sections = [
 autodoc_default_options = {
     "inherited-members": "BaseModel, pydantic.BaseModel, pydantic.main.BaseModel"
 }
-autosummary_generate = False
+
+autosummary_generate = True
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

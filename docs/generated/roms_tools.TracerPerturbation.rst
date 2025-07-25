@@ -5,17 +5,98 @@
 
 .. autoclass:: TracerPerturbation
    :members:
-
-
+   :exclude-members: model_config
+   :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
 
 
    .. rubric:: Methods
    .. autosummary::
       :toctree:
 
+
             TracerPerturbation.check_tracer_flux_lengths
 
+
+
+
+
+
+
+
+
+
             TracerPerturbation.create_fluxes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
    .. rubric:: Attributes
    .. autosummary::
@@ -52,7 +133,3 @@
 
 
       TracerPerturbation.vsc
-
-    :no-members:
-   ..
-        :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel

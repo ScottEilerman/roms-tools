@@ -3,14 +3,15 @@
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
-
+   :members:
+   :exclude-members: model_config
    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
    {% block methods %}
    {% if methods %}
    .. rubric:: Methods
    .. autosummary::
       :toctree:
-   {% for item in all_methods %}
+   {% for item in methods %}
       {%- if not item.startswith('_') or item in ['__call__',
                                                   ] %}
         {%- if not (objname == 'ChildGrid' and item == 'from_file') %}

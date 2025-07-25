@@ -4,42 +4,14 @@
 .. currentmodule:: roms_tools
 
 .. autoclass:: ROMSOutput
-
+   :members:
+   :exclude-members: model_config
    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
 
 
    .. rubric:: Methods
    .. autosummary::
       :toctree:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
             ROMSOutput.plot

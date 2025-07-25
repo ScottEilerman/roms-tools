@@ -4,44 +4,14 @@
 .. currentmodule:: roms_tools
 
 .. autoclass:: BoundaryForcing
-
+   :members:
+   :exclude-members: model_config
    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
 
 
    .. rubric:: Methods
    .. autosummary::
       :toctree:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
             BoundaryForcing.from_yaml

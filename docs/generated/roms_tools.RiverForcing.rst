@@ -4,41 +4,14 @@
 .. currentmodule:: roms_tools
 
 .. autoclass:: RiverForcing
-
+   :members:
+   :exclude-members: model_config
    :inherited-members: BaseModel, pydantic.BaseModel, pydantic.main.BaseModel
 
 
    .. rubric:: Methods
    .. autosummary::
       :toctree:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
             RiverForcing.from_yaml
