@@ -19,8 +19,8 @@
         {%- endif %}
       {%- endif %}
     {%- endif %}
-   {% endfor %}
-   {% endif %}
+   {%- endfor %}
+   {%- endif %}
    {% endblock %}
 
    {% block attributes %}
