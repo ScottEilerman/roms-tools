@@ -11,10 +11,15 @@
    .. rubric:: Methods
    .. autosummary::
       :toctree:
+
    {%- for item in methods %}
       {%- if not item.startswith('_') or item in ['__call__'] %}
         {%- if not (objname == 'ChildGrid' and item == 'from_file') %}
         {%- if not item in inherited_members %}
+{#-
+The blank line below this line is a load bearing whitespace!
+#}
+
             {{ name }}.{{ item }}
         {%- endif %}
       {%- endif %}

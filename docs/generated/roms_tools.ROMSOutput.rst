@@ -20,8 +20,6 @@
 
 
 
-
-
    .. rubric:: Attributes
    .. autosummary::
 

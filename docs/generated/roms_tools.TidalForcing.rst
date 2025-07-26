@@ -24,8 +24,6 @@
 
 
 
-
-
    .. rubric:: Attributes
    .. autosummary::
 

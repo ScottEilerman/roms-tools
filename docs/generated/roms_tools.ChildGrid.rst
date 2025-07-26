@@ -13,22 +13,15 @@
    .. autosummary::
       :toctree:
 
-
             ChildGrid.from_yaml
 
-
             ChildGrid.plot_nesting
-
-
 
             ChildGrid.save_nesting
 
             ChildGrid.to_yaml
 
             ChildGrid.update_topography
-
-
-
 
 
 

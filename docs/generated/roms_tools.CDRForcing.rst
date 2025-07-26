@@ -13,27 +13,9 @@
    .. autosummary::
       :toctree:
 
-
-
-
-
             CDRForcing.from_yaml
 
-
-
-
-
-
-
-
             CDRForcing.model_post_init
-
-
-
-
-
-
-
 
             CDRForcing.plot_location_side_view
 
@@ -47,13 +29,7 @@
 
             CDRForcing.save
 
-
-
             CDRForcing.to_yaml
-
-
-
-
 
 
 
