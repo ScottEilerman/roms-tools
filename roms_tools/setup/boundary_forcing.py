@@ -317,41 +317,81 @@ class BoundaryForcing:
 
         data = self._get_data()
 
-        # Regrid engine is chosen independently of the prefill via the resolved
-        # ``RegridConfig`` (built in _resolve_prefill_options):
-        #   - prefill is None + xESMF      : masked xESMF bilinear regrid + extrap (no fill)
-        #   - prefill is None + scipy      : nearest-neighbor pre-fill + scipy interp
-        #   - prefill set + xESMF          : whole-domain source fill, then plain
-        #                                    xESMF bilinear regrid (lazy, faster on large grids)
-        #   - prefill set + scipy          : whole-domain source fill, then scipy interp
-        # On a prefilled (NaN-free) source no mask or extrapolation is needed, so
-        # the xESMF regrid is plain bilinear.
-        regrid = self._regrid
-        prefill = self.prefill
-        use_xesmf = regrid.use_xesmf
-
-        if prefill is not None:
-            # Whole-domain source fill (parallels the legacy AMG path): gives the
-            # fill the same ocean context across the full footprint, not a thin
-            # per-boundary strip. After this the source is NaN-free, so each
-            # boundary is regridded with plain bilinear (no extrapolation).
-            data.choose_subdomain(
-                target_coords,
-                unchunk_lateral_dims=True,
-            )
-            # Enforce double precision to ensure reproducibility
-            data.convert_to_float64()
-            data.extrapolate_deepest_to_bottom()
-            data.apply_prefill(
-                prefill,
-                prefill_kwargs=self.prefill_kwargs,
-                prefill_was_user_set=True,
-            )
+        self._apply_whole_domain_prefill(data, target_coords)
 
         self._set_variable_info(data)
         self._set_boundary_info()
+        var_names = self._collect_var_names(data)
+
         ds = xr.Dataset()
 
+        for direction, is_enabled in self.boundaries.items():
+            if not is_enabled:
+                continue
+
+            bdry_data = self._prepare_boundary_source(direction, data, target_coords)
+            processed_fields, zeta, zeta_u, zeta_v = self._lateral_regrid_boundary(
+                direction, bdry_data, var_names, target_coords
+            )
+            self._vertical_regrid_boundary(
+                direction, bdry_data, var_names, processed_fields, zeta, zeta_u, zeta_v
+            )
+            self._compute_barotropic_boundary(
+                direction, var_names, processed_fields, zeta_u, zeta_v
+            )
+
+            # Reorder dimensions
+            for var_name in processed_fields:
+                processed_fields[var_name] = transpose_dimensions(
+                    processed_fields[var_name]
+                )
+
+            if self.type == "bgc":
+                processed_fields = compute_missing_bgc_variables(processed_fields)
+
+            # Write the boundary data into dataset
+            ds = self._write_into_dataset(direction, processed_fields, ds)
+
+        ds = self._finalize_dataset(data, ds)
+        self.ds = ds
+
+    def _apply_whole_domain_prefill(self, data, target_coords) -> None:
+        """Optionally fill the whole-domain source before the per-boundary regrid.
+
+        The regrid engine is chosen independently of the prefill via the resolved
+        ``RegridConfig`` (built in ``_resolve_prefill_options``):
+
+        - prefill is None + xESMF : masked xESMF bilinear regrid + extrap (no fill)
+        - prefill is None + scipy : nearest-neighbor pre-fill + scipy interp
+        - prefill set + xESMF     : whole-domain source fill, then plain xESMF
+          bilinear regrid (lazy, faster on large grids)
+        - prefill set + scipy     : whole-domain source fill, then scipy interp
+
+        When ``prefill`` is set this fills the source across its full footprint (the
+        same ocean context as the legacy AMG path, not a thin per-boundary strip);
+        afterwards the source is NaN-free, so each boundary regrids with plain
+        bilinear (no extrapolation). When ``prefill`` is None the prep instead
+        happens per boundary in :meth:`_prepare_boundary_source`.
+        """
+        if self.prefill is None:
+            return
+        data.choose_subdomain(target_coords, unchunk_lateral_dims=True)
+        # Enforce double precision to ensure reproducibility.
+        data.convert_to_float64()
+        data.extrapolate_deepest_to_bottom()
+        data.apply_prefill(
+            self.prefill,
+            prefill_kwargs=self.prefill_kwargs,
+            prefill_was_user_set=True,
+        )
+
+    def _collect_var_names(self, data) -> dict:
+        """Map each variable to its source name and grid location.
+
+        Includes optional variables when present in the source dataset. Iterating
+        the source ``var_names``/``opt_var_names`` keeps only variables the source
+        actually provides.
+        """
         var_names = {
             var: {
                 "name": data.var_names[var],
@@ -371,126 +411,110 @@ class BoundaryForcing:
                 if data.opt_var_names[var] in data.ds.data_vars
             }
         )
+        return var_names
 
-        for direction, is_enabled in self.boundaries.items():
-            if not is_enabled:
-                continue
+    def _prepare_boundary_source(self, direction, data, target_coords):
+        """Select the per-boundary source subdomain and prepare it for regridding.
 
-            bdry_target_coords = {
-                "lat": target_coords["lat"].isel(
-                    **self.bdry_coords["vector"][direction]
-                ),
-                "lon": target_coords["lon"].isel(
-                    **self.bdry_coords["vector"][direction]
-                ),
-                "straddle": target_coords["straddle"],
-            }
+        When ``prefill`` is None the per-boundary prep (float64, deepest-to-bottom,
+        and -- without xESMF -- a nearest-neighbor source fill so scipy cannot
+        propagate NaNs) happens here. When ``prefill`` is set the whole-domain
+        source was already filled in :meth:`_apply_whole_domain_prefill`.
+        """
+        bdry_target_coords = {
+            "lat": target_coords["lat"].isel(**self.bdry_coords["vector"][direction]),
+            "lon": target_coords["lon"].isel(**self.bdry_coords["vector"][direction]),
+            "straddle": target_coords["straddle"],
+        }
 
-            bdry_data = data.choose_subdomain(
-                bdry_target_coords,
-                # TODO: make per-boundary buffer_points configurable.
-                buffer_points=3,
-                return_copy=True,
-                unchunk_lateral_dims=True,
+        bdry_data = data.choose_subdomain(
+            bdry_target_coords,
+            # TODO: make per-boundary buffer_points configurable.
+            buffer_points=3,
+            return_copy=True,
+            unchunk_lateral_dims=True,
+        )
+
+        if self.prefill is None:
+            # Default (no source prefill) path. Prep happens per boundary.
+            # Enforce double precision to ensure reproducibility
+            bdry_data.convert_to_float64()
+            bdry_data.extrapolate_deepest_to_bottom()
+            if not self._regrid.use_xesmf:
+                # xESMF unavailable: nearest-neighbor pre-fill the source so the
+                # subsequent scipy interpolation cannot propagate NaNs.
+                bdry_data.apply_nearest_neighbor_fill()
+        return bdry_data
+
+    def _lateral_regrid_boundary(self, direction, bdry_data, var_names, target_coords):
+        """Laterally regrid every field at one boundary onto the ROMS margins.
+
+        Regrids vector (u/v) and tracer fields, rotates velocities to the grid and
+        interpolates them to u/v points, and selects the outermost u/v margin.
+
+        Returns ``(processed_fields, zeta, zeta_u, zeta_v)``. The ``zeta*`` values
+        feed the depth-coordinate computation; they are the scalar ``0`` unless
+        ``adjust_depth_for_sea_surface_height`` is enabled.
+        """
+        use_xesmf = self._regrid.use_xesmf
+
+        # Precomputed static source masks for the xESMF masked-bilinear path,
+        # matched to the field type: ``mask`` (tracer validity) for tracers and
+        # ``zeta``, ``mask_vel`` (velocity validity) for u/v. Reusing these stored
+        # 2D fields avoids recomputing a mask from the full (lazy) source series.
+        # ``None`` means the source is already NaN-free (e.g. the pre-filled UNIFIED
+        # BGC dataset, which carries no mask, or a whole-domain prefill) so the
+        # regridder uses plain bilinear; irrelevant on the scipy path.
+        if use_xesmf and self.prefill is None:
+            tracer_mask = (
+                bdry_data.ds["mask"] if "mask" in bdry_data.ds.data_vars else None
             )
+            vector_mask = (
+                bdry_data.ds["mask_vel"]
+                if "mask_vel" in bdry_data.ds.data_vars
+                else tracer_mask
+            )
+        else:
+            tracer_mask = None
+            vector_mask = None
 
-            if prefill is None:
-                # Default (no source prefill) path. Prep happens per boundary.
-                # Enforce double precision to ensure reproducibility
-                bdry_data.convert_to_float64()
-                bdry_data.extrapolate_deepest_to_bottom()
-                if not use_xesmf:
-                    # xESMF unavailable: nearest-neighbor pre-fill the source so the
-                    # subsequent scipy interpolation cannot propagate NaNs.
-                    bdry_data.apply_nearest_neighbor_fill()
-            # When prefill is set, the whole-domain source was already filled
-            # (float64 + deepest-to-bottom + fill) before this loop.
+        # With a prefilled (NaN-free) source, no regrid-time extrapolation is needed;
+        # use plain bilinear (the config returns ``None`` then).
+        regrid_extrap_method = self._regrid.regrid_extrap_method
+        regrid_extrap_kwargs = self._regrid.regrid_extrap_kwargs
 
-            # Precomputed static source masks for the xESMF masked-bilinear
-            # path, matched to the field type: ``mask`` (tracer validity) for
-            # tracers and ``zeta``, ``mask_vel`` (velocity validity) for u/v.
-            # Reusing these stored 2D fields avoids recomputing a mask from the
-            # full (lazy) source series. ``None`` means the source is already
-            # NaN-free (e.g. the pre-filled UNIFIED BGC dataset, which carries
-            # no mask, or a whole-domain prefill above) so the regridder uses
-            # plain bilinear; irrelevant on the scipy path.
-            if use_xesmf and prefill is None:
-                tracer_mask = (
-                    bdry_data.ds["mask"] if "mask" in bdry_data.ds.data_vars else None
+        processed_fields = {}
+
+        # lateral regridding of vector fields
+        filtered_vars = [
+            var_name
+            for var_name, info in var_names.items()
+            if self.variable_info[var_name]["is_vector"]
+        ]
+        if filtered_vars:
+            lon = target_coords["lon"].isel(**self.bdry_coords["vector"][direction])
+            lat = target_coords["lat"].isel(**self.bdry_coords["vector"][direction])
+            lateral_regrid_vector = LateralRegridToROMS(
+                {"lat": lat, "lon": lon},
+                bdry_data.dim_names,
+                source_ds=bdry_data.ds,
+                use_xesmf=use_xesmf,
+                source_mask=vector_mask,
+                extrap_method=regrid_extrap_method,
+                extrap_kwargs=regrid_extrap_kwargs,
+            )
+            for var_name in filtered_vars:
+                processed_fields[var_name] = lateral_regrid_vector.apply(
+                    bdry_data.ds[var_names[var_name]["name"]]
                 )
-                vector_mask = (
-                    bdry_data.ds["mask_vel"]
-                    if "mask_vel" in bdry_data.ds.data_vars
-                    else tracer_mask
-                )
-            else:
-                tracer_mask = None
-                vector_mask = None
 
-            # With a prefilled (NaN-free) source, no regrid-time extrapolation
-            # is needed; use plain bilinear (the config returns ``None`` then).
-            regrid_extrap_method = regrid.regrid_extrap_method
-            regrid_extrap_kwargs = regrid.regrid_extrap_kwargs
-
-            processed_fields = {}
-
-            # Filter var_names by vector fields
-            filtered_vars = [
-                var_name
-                for var_name, info in var_names.items()
-                if self.variable_info[var_name]["is_vector"]
-            ]
-
-            # lateral regridding of vector fields
-
-            if filtered_vars:
-                lon = target_coords["lon"].isel(**self.bdry_coords["vector"][direction])
-                lat = target_coords["lat"].isel(**self.bdry_coords["vector"][direction])
-                lateral_regrid_vector = LateralRegridToROMS(
-                    {"lat": lat, "lon": lon},
-                    bdry_data.dim_names,
-                    source_ds=bdry_data.ds,
-                    use_xesmf=use_xesmf,
-                    source_mask=vector_mask,
-                    extrap_method=regrid_extrap_method,
-                    extrap_kwargs=regrid_extrap_kwargs,
-                )
-                for var_name in filtered_vars:
-                    processed_fields[var_name] = lateral_regrid_vector.apply(
-                        bdry_data.ds[var_names[var_name]["name"]]
-                    )
-
-                if self.adjust_depth_for_sea_surface_height:
-                    # Regrid sea surface height ('zeta') onto a 2-cell-wide margin.
-                    # This is needed to correctly infer depth coordinates at u- and v-points along the boundary.
-                    # 'zeta' is a tracer, so it uses the tracer mask (not the
-                    # velocity mask of the vector regridder); build a dedicated
-                    # regridder on the same vector-margin target.
-                    zeta_vector_regrid = LateralRegridToROMS(
-                        {"lat": lat, "lon": lon},
-                        bdry_data.dim_names,
-                        source_ds=bdry_data.ds,
-                        use_xesmf=use_xesmf,
-                        source_mask=tracer_mask,
-                        extrap_method=regrid_extrap_method,
-                        extrap_kwargs=regrid_extrap_kwargs,
-                    )
-                    zeta_vector = zeta_vector_regrid.apply(
-                        bdry_data.ds[var_names["zeta"]["name"]]
-                    )
-
-            # Filter var_names by tracer fields
-            filtered_vars = [
-                var_name
-                for var_name, info in var_names.items()
-                if not self.variable_info[var_name]["is_vector"]
-            ]
-
-            # lateral regridding of tracer fields
-            if filtered_vars:
-                lon = target_coords["lon"].isel(**self.bdry_coords["rho"][direction])
-                lat = target_coords["lat"].isel(**self.bdry_coords["rho"][direction])
-                lateral_regrid = LateralRegridToROMS(
+            if self.adjust_depth_for_sea_surface_height:
+                # Regrid sea surface height ('zeta') onto a 2-cell-wide margin.
+                # This is needed to correctly infer depth coordinates at u- and v-points along the boundary.
+                # 'zeta' is a tracer, so it uses the tracer mask (not the
+                # velocity mask of the vector regridder); build a dedicated
+                # regridder on the same vector-margin target.
+                zeta_vector_regrid = LateralRegridToROMS(
                     {"lat": lat, "lon": lon},
                     bdry_data.dim_names,
                     source_ds=bdry_data.ds,
@@ -499,152 +523,170 @@ class BoundaryForcing:
                     extrap_method=regrid_extrap_method,
                     extrap_kwargs=regrid_extrap_kwargs,
                 )
-                for var_name in filtered_vars:
-                    processed_fields[var_name] = lateral_regrid.apply(
-                        bdry_data.ds[var_names[var_name]["name"]]
-                    )
-
-            # rotation of velocities and interpolation to u/v points
-            if "u" in processed_fields and "v" in processed_fields:
-                angle = target_coords["angle"].isel(
-                    **self.bdry_coords["vector"][direction]
+                zeta_vector = zeta_vector_regrid.apply(
+                    bdry_data.ds[var_names["zeta"]["name"]]
                 )
-                (
-                    processed_fields["u"],
-                    processed_fields["v"],
-                ) = rotate_velocities(
-                    processed_fields["u"],
-                    processed_fields["v"],
-                    angle,
-                    interpolate_after=True,
+
+        # lateral regridding of tracer fields
+        filtered_vars = [
+            var_name
+            for var_name, info in var_names.items()
+            if not self.variable_info[var_name]["is_vector"]
+        ]
+        if filtered_vars:
+            lon = target_coords["lon"].isel(**self.bdry_coords["rho"][direction])
+            lat = target_coords["lat"].isel(**self.bdry_coords["rho"][direction])
+            lateral_regrid = LateralRegridToROMS(
+                {"lat": lat, "lon": lon},
+                bdry_data.dim_names,
+                source_ds=bdry_data.ds,
+                use_xesmf=use_xesmf,
+                source_mask=tracer_mask,
+                extrap_method=regrid_extrap_method,
+                extrap_kwargs=regrid_extrap_kwargs,
+            )
+            for var_name in filtered_vars:
+                processed_fields[var_name] = lateral_regrid.apply(
+                    bdry_data.ds[var_names[var_name]["name"]]
                 )
-                if self.adjust_depth_for_sea_surface_height:
-                    zeta_u = interpolate_from_rho_to_u(zeta_vector)
-                    zeta_v = interpolate_from_rho_to_v(zeta_vector)
 
-            # selection of outermost margin for u/v variables
-            for var_name in processed_fields:
-                location = self.variable_info[var_name]["location"]
-                if location in ["u", "v"]:
-                    processed_fields[var_name] = processed_fields[var_name].isel(
-                        **self.bdry_coords[location][direction]
-                    )
-
+        # rotation of velocities and interpolation to u/v points
+        if "u" in processed_fields and "v" in processed_fields:
+            angle = target_coords["angle"].isel(**self.bdry_coords["vector"][direction])
+            (
+                processed_fields["u"],
+                processed_fields["v"],
+            ) = rotate_velocities(
+                processed_fields["u"],
+                processed_fields["v"],
+                angle,
+                interpolate_after=True,
+            )
             if self.adjust_depth_for_sea_surface_height:
-                zeta_u = zeta_u.isel(**self.bdry_coords["u"][direction])
-                zeta_v = zeta_v.isel(**self.bdry_coords["v"][direction])
+                zeta_u = interpolate_from_rho_to_u(zeta_vector)
+                zeta_v = interpolate_from_rho_to_v(zeta_vector)
 
-            if self.adjust_depth_for_sea_surface_height:
-                zeta = processed_fields["zeta"]
+        # selection of outermost margin for u/v variables
+        for var_name in processed_fields:
+            location = self.variable_info[var_name]["location"]
+            if location in ["u", "v"]:
+                processed_fields[var_name] = processed_fields[var_name].isel(
+                    **self.bdry_coords[location][direction]
+                )
+
+        if self.adjust_depth_for_sea_surface_height:
+            zeta_u = zeta_u.isel(**self.bdry_coords["u"][direction])
+            zeta_v = zeta_v.isel(**self.bdry_coords["v"][direction])
+            zeta = processed_fields["zeta"]
+        else:
+            zeta = 0
+            zeta_u = 0
+            zeta_v = 0
+
+        return processed_fields, zeta, zeta_u, zeta_v
+
+    def _vertical_regrid_boundary(
+        self, direction, bdry_data, var_names, processed_fields, zeta, zeta_u, zeta_v
+    ) -> None:
+        """Vertically regrid the 3-D fields at one boundary onto ROMS layer depths.
+
+        Computes the layer/interface depth coordinates per grid location and
+        interpolates each 3-D tracer in depth (or, for BGC, density / MLD-warped
+        depth). Mutates ``processed_fields`` in place.
+        """
+        for location in ["rho", "u", "v"]:
+            # Filter var_names by location and check for 3D variables
+            filtered_vars = [
+                var_name
+                for var_name, info in var_names.items()
+                if info["location"] == location
+                and self.variable_info[var_name]["is_3d"]
+            ]
+            if not filtered_vars:
+                continue
+
+            # compute layer depth coordinates
+            if location == "rho":
+                self._get_depth_coordinates(zeta, direction, "rho", "layer")
+                self._get_depth_coordinates(
+                    zeta, direction, "rho", "interface"
+                )  # only necessary for plotting
             else:
-                zeta = 0
-                zeta_u = 0
-                zeta_v = 0
+                self._get_depth_coordinates(zeta_u, direction, "u", "layer")
+                self._get_depth_coordinates(zeta_v, direction, "v", "layer")
 
-            for location in ["rho", "u", "v"]:
-                # Filter var_names by location and check for 3D variables
-                filtered_vars = [
-                    var_name
-                    for var_name, info in var_names.items()
-                    if info["location"] == location
-                    and self.variable_info[var_name]["is_3d"]
-                ]
+            # vertical regridding
+            vertical_regrid = VerticalRegrid(
+                bdry_data.ds, source_dim=bdry_data.dim_names["depth"]
+            )
 
-                if filtered_vars:
-                    # compute layer depth coordinates
-                    if location == "rho":
-                        self._get_depth_coordinates(zeta, direction, "rho", "layer")
-                        self._get_depth_coordinates(
-                            zeta, direction, "rho", "interface"
-                        )  # only necessary for plotting
-                    else:
-                        self._get_depth_coordinates(zeta_u, direction, "u", "layer")
-                        self._get_depth_coordinates(zeta_v, direction, "v", "layer")
+            # The BGC dataset declares its own source T/S pair
+            # (``bgc_source_ts``, e.g. ``temp_bgc``/``salt_bgc``) that defines the
+            # source density coordinate; it is not written to output, so it is
+            # handled separately from the tracers and dropped afterwards.
+            ts_keys = tuple(getattr(bdry_data, "bgc_source_ts", ()))
+            aux_ts_vars = [
+                v for v in ts_keys if v in filtered_vars and v in processed_fields
+            ]
+            tracer_vars = [v for v in filtered_vars if v not in aux_ts_vars]
 
-                    # vertical regridding
-                    vertical_regrid = VerticalRegrid(
-                        bdry_data.ds, source_dim=bdry_data.dim_names["depth"]
-                    )
-
-                    # The BGC dataset declares its own source T/S pair
-                    # (``bgc_source_ts``, e.g. ``temp_bgc``/``salt_bgc``) that defines
-                    # the source density coordinate; it is not written to output, so it
-                    # is handled separately from the tracers and dropped afterwards.
-                    ts_keys = tuple(getattr(bdry_data, "bgc_source_ts", ()))
-                    aux_ts_vars = [
-                        v
-                        for v in ts_keys
-                        if v in filtered_vars and v in processed_fields
-                    ]
-                    tracer_vars = [v for v in filtered_vars if v not in aux_ts_vars]
-
-                    has_source_ts = len(aux_ts_vars) == 2
-                    # Resolve the requested method against availability of the
-                    # physics target T/S and the BGC source T/S (falls back to
-                    # depth, logging the reason, when either is missing).
-                    method = BgcInterpMethod.depth
-                    if self.type == "bgc" and location == "rho":
-                        method = resolve_bgc_interp_method(
-                            self.bgc_interpolation_method,
-                            has_physics_forcing=self.physics_forcing is not None,
-                            has_source_ts=has_source_ts,
-                            where=f"{direction} boundary",
-                        )
-
-                    source_coord = None
-                    target_coord = None
-                    if method != BgcInterpMethod.depth:
-                        source_coord, target_coord = self._compute_bgc_vertical_coords(
-                            method, direction, bdry_data, processed_fields
-                        )
-
-                    for var_name in tracer_vars:
-                        if var_name not in processed_fields:
-                            continue
-                        if method != BgcInterpMethod.depth:
-                            processed_fields[var_name] = vertical_regrid.apply(
-                                processed_fields[var_name],
-                                source_depth_coords=source_coord,
-                                target_depth_coords=target_coord,
-                            )
-                        else:
-                            processed_fields[var_name] = vertical_regrid.apply(
-                                processed_fields[var_name],
-                                source_depth_coords=bdry_data.ds[
-                                    bdry_data.dim_names["depth"]
-                                ],
-                                target_depth_coords=self.ds_depth_coords[
-                                    f"layer_depth_{location}_{direction}"
-                                ],
-                            )
-
-                    # Drop the auxiliary source T/S; not ROMS output variables.
-                    for v in aux_ts_vars:
-                        processed_fields.pop(v, None)
-
-            # compute barotropic velocities
-            if "u" in var_names and "v" in var_names:
-                self._get_depth_coordinates(zeta_u, direction, "u", "interface")
-                self._get_depth_coordinates(zeta_v, direction, "v", "interface")
-                for location in ["u", "v"]:
-                    processed_fields[f"{location}bar"] = compute_barotropic_velocity(
-                        processed_fields[location],
-                        self.ds_depth_coords[f"interface_depth_{location}_{direction}"],
-                    )
-
-            # Reorder dimensions
-            for var_name in processed_fields:
-                processed_fields[var_name] = transpose_dimensions(
-                    processed_fields[var_name]
+            has_source_ts = len(aux_ts_vars) == 2
+            # Resolve the requested method against availability of the physics
+            # target T/S and the BGC source T/S (falls back to depth, logging the
+            # reason, when either is missing).
+            method = BgcInterpMethod.depth
+            if self.type == "bgc" and location == "rho":
+                method = resolve_bgc_interp_method(
+                    self.bgc_interpolation_method,
+                    has_physics_forcing=self.physics_forcing is not None,
+                    has_source_ts=has_source_ts,
+                    where=f"{direction} boundary",
                 )
 
-            if self.type == "bgc":
-                processed_fields = compute_missing_bgc_variables(processed_fields)
+            source_coord = None
+            target_coord = None
+            if method != BgcInterpMethod.depth:
+                source_coord, target_coord = self._compute_bgc_vertical_coords(
+                    method, direction, bdry_data, processed_fields
+                )
 
-            # Write the boundary data into dataset
-            ds = self._write_into_dataset(direction, processed_fields, ds)
+            for var_name in tracer_vars:
+                if var_name not in processed_fields:
+                    continue
+                if method != BgcInterpMethod.depth:
+                    processed_fields[var_name] = vertical_regrid.apply(
+                        processed_fields[var_name],
+                        source_depth_coords=source_coord,
+                        target_depth_coords=target_coord,
+                    )
+                else:
+                    processed_fields[var_name] = vertical_regrid.apply(
+                        processed_fields[var_name],
+                        source_depth_coords=bdry_data.ds[bdry_data.dim_names["depth"]],
+                        target_depth_coords=self.ds_depth_coords[
+                            f"layer_depth_{location}_{direction}"
+                        ],
+                    )
 
-        # Add global information
+            # Drop the auxiliary source T/S; not ROMS output variables.
+            for v in aux_ts_vars:
+                processed_fields.pop(v, None)
+
+    def _compute_barotropic_boundary(
+        self, direction, var_names, processed_fields, zeta_u, zeta_v
+    ) -> None:
+        """Compute depth-averaged (barotropic) velocities ``ubar``/``vbar``."""
+        if "u" in var_names and "v" in var_names:
+            self._get_depth_coordinates(zeta_u, direction, "u", "interface")
+            self._get_depth_coordinates(zeta_v, direction, "v", "interface")
+            for location in ["u", "v"]:
+                processed_fields[f"{location}bar"] = compute_barotropic_velocity(
+                    processed_fields[location],
+                    self.ds_depth_coords[f"interface_depth_{location}_{direction}"],
+                )
+
+    def _finalize_dataset(self, data, ds):
+        """Add global metadata, validate, and replace land NaNs with a fill value."""
         ds = self._add_global_metadata(data, ds)
 
         if not self.bypass_validation:
@@ -653,8 +695,7 @@ class BoundaryForcing:
         # substitute NaNs over land by a fill value to avoid blow-up of ROMS
         for var_name in ds.data_vars:
             ds[var_name] = substitute_nans_by_fillvalue(ds[var_name])
-
-        self.ds = ds
+        return ds
 
     def _resolve_prefill_options(self) -> None:
         """Build the validated :class:`RegridConfig` from the public options.
